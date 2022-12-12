@@ -12,15 +12,15 @@
           "type": "object",
           "properties": {
             "tvos": {
-              "$ref": "./api.json"
+              "$ref": "./schema/api.json"
             },
             "web": {
-              "$ref": "./api.json"
+              "$ref": "./schema/api.json"
             }
           }
         },
         "sps": {
-          "$ref": "./api.json"
+          "$ref": "./schema/api.json"
         }
       }
     },
@@ -28,7 +28,7 @@
       "type": "object",
       "properties": {
         "player": {
-          "$ref": "./api.json"
+          "$ref": "./schema/api.json"
         }
       }
     }
