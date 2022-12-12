@@ -1,0 +1,37 @@
+{
+  "title": "Configuration Service Validator Schema",
+  "description": "This schema establishes the requirements for a client configuration within the SPS stack",
+  "properties": {
+    "version": {
+      "type": "number"
+    },
+    "apis": {
+      "type": "object",
+      "properties": {
+        "foxkit": {
+          "type": "object",
+          "properties": {
+            "tvos": {
+              "$ref": "api.json"
+            },
+            "web": {
+              "$ref": "api.json"
+            }
+          }
+        },
+        "sps": {
+          "$ref": "api.json"
+        }
+      }
+    },
+    "debug": {
+      "type": "object",
+      "properties": {
+        "player": {
+          "$ref": "api.json"
+        }
+      }
+    }
+  },
+  "required": ["version", "apis"]
+}
