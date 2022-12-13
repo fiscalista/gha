@@ -1,0 +1,13 @@
+name: Pipeline that executes jobs against Prod.
+on:
+  push:
+    branches:
+      - main
+jobs:
+  send_to_s3: 
+    uses: diegodurli/gha/.github/workflows/upload_to_s3.yml@main
+    with:
+      aws_region: us-east-1
+      assumed_role: arn:aws:iam::111111111111:role/my-github-actions-role-test
+      destination_bucket: ddconfigtest
+      file_path: ./config/file.json
