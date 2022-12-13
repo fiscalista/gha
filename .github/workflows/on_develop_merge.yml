@@ -8,6 +8,6 @@ jobs:
     uses: diegodurli/gha/.github/workflows/upload_to_s3.yml@main
     with:
       aws_region: us-east-1
-      assumed_role: ${{ secrets.AWS_ASSUMED_ROLE }}
-      destination_bucket: ddconfigtest
+      assumed_role: ${{ secrets.AWS_ASSUMED_ROLE_DEV1 }}
+      destination_bucket: ${{ secrets.AWS_DESTINATION_BUCKET }}
       file_path: ./config/file.json
