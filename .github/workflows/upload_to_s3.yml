@@ -27,6 +27,7 @@ jobs:
         with:
           role-to-assume: ${{ inputs.assumed_role }}
           aws-region: ${{ inputs.aws_region }}
+          role-session-name: OIDCSession
 
       - name: Upload to S3
         run: |
