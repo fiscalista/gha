@@ -25,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: ${{ inputs.aws_region }}
-          role-to-assume: ${{ secrets.assumed_role }}
+          role-to-assume: arn:aws:iam::762496739597:role/S3Uploader
           role-session-name: OIDCSession
 
       - name: Upload to S3
