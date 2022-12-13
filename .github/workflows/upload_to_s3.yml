@@ -1,14 +1,13 @@
 name: Upload to S3 using a assumed-role
 on:
   workflow_call:
-    inputs:
-      aws_region:
-        required: true
-        type: string
+    secrets:
       assumed_role:
         required: true
-        type: string
       destination_bucket:
+        required: true
+    inputs:
+      aws_region:
         required: true
         type: string
       file_path:
@@ -25,10 +24,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: ${{ inputs.assumed_role }}
           aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ secrets.assumed_role }}
           role-session-name: OIDCSession
 
       - name: Upload to S3
         run: |
-          aws s3 sync ${{ inputs.file_path }} s3://${{ inputs.destination_bucket }}
+          aws s3 sync ${{ inputs.file_path }} s3://${{ secrets.destination_bucket }}
