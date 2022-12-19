@@ -1,1 +1,1 @@
-Test trigger test nice
+Test trigger test nice.
