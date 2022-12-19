@@ -1,0 +1,8 @@
+name: Run benchmarks and check results
+on:
+  push:
+    branches:
+      - develop
+jobs:
+  benchs:
+    uses: diegodurli/ghac/.github/workflows/benchmarks.yaml@main

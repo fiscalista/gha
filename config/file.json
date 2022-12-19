@@ -3,7 +3,7 @@
   "apis": {
     "foxkit": {
       "tvos": {
-        "base_url": "base",
+        "base_url": "base_new_stuff",
         "api_key": "apikey",
         "player_url": "player",
         "paths": {
