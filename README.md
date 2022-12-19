@@ -1,1 +1,1 @@
-Test trigger again cool.
+Test trigger.
