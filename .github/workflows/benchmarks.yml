@@ -5,4 +5,4 @@ on:
       - develop
 jobs:
   benchs:
-    uses: diegodurli/ghac/.github/workflows/benchmarks.yaml@main
+    uses: diegodurli/ghac/.github/workflows/benchmarks.yml@main
