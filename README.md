@@ -1,1 +1,1 @@
-Test trigger test nice cool.
+Test trigger.
