@@ -2,12 +2,18 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/tidwall/gjson"
 )
 
 func main() {
+	fmt.Println(PrettyNice())
+}
+
+func PrettyNice() string {
 	data := `{"nice":"cool"}`
 	v := gjson.Get(data, "nice")
-	fmt.Println(v)
+	time.Sleep(time.Duration(1 * time.Nanosecond))
+	return v.String()
 }
