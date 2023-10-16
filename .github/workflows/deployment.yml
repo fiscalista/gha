@@ -1,9 +1,0 @@
-name: Deployment Pipeline on Repo
-on:
-  pull_request_review_comment:
-    types: [created]
-
-jobs:
-  log_event:
-    name: Event Logger
-    uses: diegodurli/ghac/.github/workflows/deploy.yml@main

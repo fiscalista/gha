@@ -1,0 +1,253 @@
+name: Slack Notifier API (using an OAuth token)
+description: >-
+  Send a Notification to Slack using their API (using the GH Action
+  slackapi/slack-github-action@v2.1.1). Supports interactive Approve/Deny
+  release-approval buttons for higher environments.
+inputs:
+  business_unit:
+    description: "Business unit"
+    required: true
+  environment:
+    description: "Environment (e.g. dev, staging, production)"
+    required: true
+  region:
+    description: "AWS Region"
+    required: true
+  repository:
+    description: "Repository link"
+    required: false
+    default: ${{ github.repository }}
+  branch:
+    description: "Branch name"
+    required: true
+  channel:
+    description: "Slack channel to post message to"
+    required: true
+  slack_bot_token:
+    description: "Slack bot token (OAuth)"
+    required: true
+  message_title:
+    description: "Title of the message"
+    required: true
+  message_body:
+    description: "Body of the message"
+    required: true
+  message_id_to_update:
+    description: "Message ID to update"
+    required: false
+  reply_to_message_id:
+    description: "Message ID to reply to"
+    required: false
+  render_approval_buttons:
+    description: >-
+      When 'true' AND decision_state is 'pending', append Approve/Deny buttons
+      so an allowed Slack approver can approve/deny the release without going
+      to the GitHub Actions UI.
+    required: false
+    default: 'false'
+  gh_run_id:
+    description: "GitHub Actions run ID (used by the receiver to resolve pending_deployments)"
+    required: false
+    default: ${{ github.run_id }}
+  gh_environment:
+    description: "Target GitHub Environment for pending_deployments (e.g. staging, production)"
+    required: false
+    default: ''
+  approver_slack_user_ids:
+    description: >-
+      Comma-separated allowlist of Slack user IDs (e.g. 'U01ABC,U02DEF') that
+      are authorized to approve/deny this release. Embedded in the button
+      payload so the receiver can validate the clicker.
+    required: false
+    default: ''
+  decision_state:
+    description: "Approval state: 'pending' | 'approved' | 'denied'"
+    required: false
+    default: 'pending'
+  decided_by_slack_user_id:
+    description: "Slack user ID (e.g. 'U01ABC') of the approver, when decision_state != 'pending'"
+    required: false
+    default: ''
+  approve_action_id:
+    description: "Slack action_id for the Approve button"
+    required: false
+    default: 'release_approve'
+  deny_action_id:
+    description: "Slack action_id for the Deny button"
+    required: false
+    default: 'release_deny'
+outputs:
+  initial_message_id:
+    description: "The timestamp of the initial message posted to Slack (used for message updating)"
+    value: ${{ steps.slack.outputs.ts }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Slack Blocks Payload
+      id: blocks
+      shell: bash
+      env:
+        MESSAGE_TITLE: ${{ inputs.message_title }}
+        MESSAGE_BODY: ${{ inputs.message_body }}
+        REPOSITORY: ${{ inputs.repository }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        BRANCH: ${{ inputs.branch }}
+        ACTOR: ${{ github.actor }}
+        REGION: ${{ inputs.region }}
+        BUSINESS_UNIT: ${{ inputs.business_unit }}
+        RENDER_BUTTONS: ${{ inputs.render_approval_buttons }}
+        DECISION_STATE: ${{ inputs.decision_state }}
+        DECIDED_BY: ${{ inputs.decided_by_slack_user_id }}
+        GH_RUN_ID: ${{ inputs.gh_run_id }}
+        GH_ENVIRONMENT: ${{ inputs.gh_environment }}
+        APPROVER_IDS: ${{ inputs.approver_slack_user_ids }}
+        APPROVE_ACTION_ID: ${{ inputs.approve_action_id }}
+        DENY_ACTION_ID: ${{ inputs.deny_action_id }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+
+        # Base blocks: header + metadata fields + body section. Always present.
+        BLOCKS=$(jq -n \
+          --arg title "$MESSAGE_TITLE" \
+          --arg body "$MESSAGE_BODY" \
+          --arg repository "$REPOSITORY" \
+          --arg environment "$ENVIRONMENT" \
+          --arg branch "$BRANCH" \
+          --arg actor "$ACTOR" \
+          --arg region "$REGION" \
+          --arg bu "$BUSINESS_UNIT" \
+          '[
+            {
+              type: "header",
+              text: { type: "plain_text", text: $title }
+            },
+            {
+              type: "section",
+              fields: [
+                { type: "mrkdwn", text: ("*Repository:*\n" + $repository) },
+                { type: "mrkdwn", text: ("*Environment:*\n" + $environment) },
+                { type: "mrkdwn", text: ("*Branch:*\n" + $branch) },
+                { type: "mrkdwn", text: ("*Triggered by:*\n<https://github.com/" + $actor + "|@" + $actor + ">") },
+                { type: "mrkdwn", text: ("*Region:*\n" + $region) },
+                { type: "mrkdwn", text: ("*Business Unit:*\n" + $bu) }
+              ]
+            },
+            {
+              type: "section",
+              text: { type: "mrkdwn", text: $body }
+            }
+          ]')
+
+        # Conditionally append actions (buttons) or a decision context block.
+        if [ "$RENDER_BUTTONS" = "true" ] && [ "$DECISION_STATE" = "pending" ]; then
+          APPROVE_VALUE=$(jq -nc \
+            --arg repo "$GH_REPO" \
+            --arg run_id "$GH_RUN_ID" \
+            --arg env "$GH_ENVIRONMENT" \
+            --arg approvers "$APPROVER_IDS" \
+            '{repo:$repo, run_id:$run_id, env:$env, approvers:$approvers, kind:"approve"}')
+          DENY_VALUE=$(jq -nc \
+            --arg repo "$GH_REPO" \
+            --arg run_id "$GH_RUN_ID" \
+            --arg env "$GH_ENVIRONMENT" \
+            --arg approvers "$APPROVER_IDS" \
+            '{repo:$repo, run_id:$run_id, env:$env, approvers:$approvers, kind:"deny"}')
+
+          BLOCKS=$(echo "$BLOCKS" | jq \
+            --arg approve_action_id "$APPROVE_ACTION_ID" \
+            --arg deny_action_id "$DENY_ACTION_ID" \
+            --arg approve_value "$APPROVE_VALUE" \
+            --arg deny_value "$DENY_VALUE" \
+            '. + [{
+              type: "actions",
+              block_id: "release_approval_actions",
+              elements: [
+                {
+                  type: "button",
+                  action_id: $approve_action_id,
+                  style: "primary",
+                  text: { type: "plain_text", text: "Approve" },
+                  value: $approve_value,
+                  confirm: {
+                    title:   { type: "plain_text", text: "Approve release?" },
+                    text:    { type: "mrkdwn",     text: "This will approve the deployment in GitHub and proceed to apply changes." },
+                    confirm: { type: "plain_text", text: "Approve" },
+                    deny:    { type: "plain_text", text: "Cancel" }
+                  }
+                },
+                {
+                  type: "button",
+                  action_id: $deny_action_id,
+                  style: "danger",
+                  text: { type: "plain_text", text: "Deny" },
+                  value: $deny_value,
+                  confirm: {
+                    title:   { type: "plain_text", text: "Deny release?" },
+                    text:    { type: "mrkdwn",     text: "This will reject the deployment in GitHub." },
+                    confirm: { type: "plain_text", text: "Deny" },
+                    deny:    { type: "plain_text", text: "Cancel" }
+                  }
+                }
+              ]
+            }]')
+        elif [ "$DECISION_STATE" = "approved" ] || [ "$DECISION_STATE" = "denied" ]; then
+          if [ "$DECISION_STATE" = "approved" ]; then
+            DECISION_TEXT=":white_check_mark: *Approved*"
+          else
+            DECISION_TEXT=":x: *Denied*"
+          fi
+          if [ -n "$DECIDED_BY" ]; then
+            DECISION_TEXT="$DECISION_TEXT by <@$DECIDED_BY>"
+          fi
+          BLOCKS=$(echo "$BLOCKS" | jq \
+            --arg text "$DECISION_TEXT" \
+            '. + [{
+              type: "context",
+              elements: [ { type: "mrkdwn", text: $text } ]
+            }]')
+        fi
+
+        # Emit as a single-line GITHUB_OUTPUT value.
+        {
+          echo "blocks<<__EOF_BLOCKS__"
+          echo "$BLOCKS"
+          echo "__EOF_BLOCKS__"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Notify Slack - Post Message
+      if: ${{ inputs.message_id_to_update == '' && inputs.reply_to_message_id == '' }}
+      id: slack
+      uses: slackapi/slack-github-action@v2.1.1
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack_bot_token }}
+        payload: |
+          "channel": "${{ inputs.channel }}",
+          "text": "${{ inputs.message_title }}",
+          "blocks": ${{ steps.blocks.outputs.blocks }}
+
+    - name: Notify Slack - Update Message
+      if: ${{ inputs.message_id_to_update != '' }}
+      uses: slackapi/slack-github-action@v2.1.1
+      with:
+        method: chat.update
+        token: ${{ inputs.slack_bot_token }}
+        payload: |
+          "channel": "${{ inputs.channel }}",
+          "ts": "${{ inputs.message_id_to_update }}",
+          "text": "${{ inputs.message_title }}",
+          "blocks": ${{ steps.blocks.outputs.blocks }}
+
+    - name: Notify Slack - Thread Reply
+      if: ${{ inputs.reply_to_message_id != '' }}
+      uses: slackapi/slack-github-action@v2.1.1
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack_bot_token }}
+        payload: |
+          "channel": "${{ inputs.channel }}",
+          "thread_ts": "${{ inputs.reply_to_message_id }}",
+          "text": "${{ inputs.message_title }}",
+          "blocks": ${{ steps.blocks.outputs.blocks }}
