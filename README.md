@@ -1,1 +1,1 @@
-Test trigger test, cool, nice.
+Test trigger test, cool, nice, wow.
