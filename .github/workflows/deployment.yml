@@ -1,15 +1,9 @@
 name: Deployment Pipeline on Repo
 on:
-  issue_comment:
+  pull_request_review_comment:
     types: [created]
 
 jobs:
   log_event:
     name: Event Logger
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log Event
-        run: |
-          echo "Event Name: ${{ github.event_name }}"
-          echo "Event Issue Pull Request: ${{ github.event.issue.pull_request }}"
-          echo "Event Payload: ${{ toJson(github.event) }}"
+    uses: diegodurli/ghac/.github/workflows/deploy.yml@main
