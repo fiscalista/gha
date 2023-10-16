@@ -1,0 +1,5 @@
+name: SPS Go Pipeline
+on: [pull_request]
+jobs:
+  benchs:
+    uses: diegodurli/ghac/.github/workflows/go_pipeline.yml@main
