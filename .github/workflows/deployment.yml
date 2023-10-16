@@ -1,12 +1,38 @@
+# name: Deploy
+# on:
+#   issue_comment:
+#     types: [created]
+#   push:
+#     branches:
+#       - develop
+#       - main
+#       - release
+# jobs:
+#   deploy:
+#     uses: diegodurli/ghac/.github/workflows/deploy.yml@main
+
 name: Deploy
-on:
-  issue_comment:
-    types: [created]
-  push:
-    branches:
-      - develop
-      - main
-      - release
+on: issue_comment
+
 jobs:
-  deploy:
-    uses: diegodurli/ghac/.github/workflows/deploy.yml@main
+  pr_commented:
+    # This job only runs for pull request comments
+    name: PR comment
+    if: ${{ github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo A comment on PR $NUMBER
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+
+  issue_commented:
+    # This job only runs for issue comments
+    name: Issue comment
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo A comment on issue $NUMBER
+        env:
+          NUMBER: ${{ github.event.issue.number }}
