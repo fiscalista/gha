@@ -42,7 +42,7 @@ jobs:
           channel: ${{ vars.SLACK_CHANNEL }}
           slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
           message_title: 'gha rehearsal: Release Queued'
-          message_body: ${{ format('<https://github.com/{0}> rehearsal release queued. Run <{1}/{0}/actions/runs/{2}|{2}>. The receiver will post an approval message when the deploy job reaches `staging`.', github.repository, github.server_url, github.run_id) }}
+          message_body: "${{ format('<https://github.com/{0}> rehearsal release queued. Run <{1}/{0}/actions/runs/{2}|{2}>. The receiver will post an approval message when the deploy job reaches `staging`.', github.repository, github.server_url, github.run_id) }}"
 
   deploy_stub:
     name: Deploy (paused by custom protection rule)
@@ -71,5 +71,5 @@ jobs:
           branch: ${{ github.ref }}
           channel: ${{ vars.SLACK_CHANNEL }}
           slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
-          message_title: ${{ needs.deploy_stub.result == 'success' && 'gha rehearsal: Release Succeeded' || 'gha rehearsal: Release Failed' }}
-          message_body: ${{ format('Run <{0}/{1}/actions/runs/{2}|{2}> ended with result `{3}`.', github.server_url, github.repository, github.run_id, needs.deploy_stub.result) }}
+          message_title: "${{ needs.deploy_stub.result == 'success' && 'gha rehearsal: Release Succeeded' || 'gha rehearsal: Release Failed' }}"
+          message_body: "${{ format('Run <{0}/{1}/actions/runs/{2}|{2}> ended with result `{3}`.', github.server_url, github.repository, github.run_id, needs.deploy_stub.result) }}"
