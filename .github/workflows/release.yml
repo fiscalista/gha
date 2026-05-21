@@ -1,18 +1,18 @@
 name: gha release rehearsal
 
-# Rehearsal pipeline for the Slack-driven release-approval flow:
-# deploy_stub (paused by a custom deployment protection rule on the
-# `staging` environment) -> notify_results.
+# Rehearsal pipeline for the Slack-driven release-approval flow.
 #
-# The Approve/Deny Slack message is posted by the receiver in response to
-# GitHub's `deployment_protection_rule` webhook -- not by this workflow.
-#
-# Run by:
-#   1. (one time) Install the receiver GitHub App on this repo and enable
-#      it as a custom protection rule on Settings -> Environments -> staging.
+# All Slack messages are posted by the receiver, not by this workflow:
+#   1. (one time) Install the receiver GitHub App on this repo and:
+#        - enable it as a custom protection rule on Settings -> Environments -> staging
+#        - subscribe the App webhook to: deployment_protection_rule + workflow_run
 #   2. Create a release on this repo (any tag like v0.0.1) or trigger via
 #      workflow_dispatch.
-#   3. Watch the receiver console + Slack channel.
+#   3. Watch the receiver console + Slack channel:
+#        - "Awaiting Approval" message appears (deployment_protection_rule webhook)
+#        - approver clicks Approve/Deny in Slack -> message updates in place
+#        - "Release Succeeded/Failed" arrives as a *thread reply* under the
+#          original message (workflow_run completion webhook)
 
 on:
   release:
@@ -34,20 +34,3 @@ jobs:
       - name: Stub deploy step
         run: |
           echo "rehearsal: deployed sha $GITHUB_SHA at $(date)"
-
-  notify_results:
-    name: Notify Slack - Results
-    needs: [deploy_stub]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (for the vendored action)
-        uses: actions/checkout@v4
-      - name: Post Slack message with final outcome
-        uses: ./.github/actions/slack_notifier_api
-        with:
-          channel: ${{ vars.SLACK_CHANNEL }}
-          slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
-          compact: 'true'
-          message_title: "${{ needs.deploy_stub.result == 'success' && ':white_check_mark: Release Succeeded (staging)' || ':x: Release Failed (staging)' }}"
-          message_body: "${{ format('<{0}/{1}/actions/runs/{2}|View run>', github.server_url, github.repository, github.run_id) }}"
