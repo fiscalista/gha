@@ -2,24 +2,36 @@ name: Slack Notifier API (using an OAuth token)
 description: >-
   Send a Notification to Slack using their API (using the GH Action
   slackapi/slack-github-action@v2.1.1). Supports interactive Approve/Deny
-  release-approval buttons for higher environments.
+  release-approval buttons for higher environments, plus an optional
+  `compact` mode for terse single-paragraph messages.
 inputs:
+  compact:
+    description: >-
+      When 'true' the message is rendered as just `header + body` (a single
+      paragraph) instead of the verbose 6-field metadata grid. Use this for
+      single-glance messages like "Release Succeeded (staging)".
+    required: false
+    default: 'false'
   business_unit:
-    description: "Business unit"
-    required: true
+    description: "Business unit (verbose mode only)"
+    required: false
+    default: ''
   environment:
-    description: "Environment (e.g. dev, staging, production)"
-    required: true
+    description: "Environment, e.g. dev, staging, production (verbose mode only)"
+    required: false
+    default: ''
   region:
-    description: "AWS Region"
-    required: true
+    description: "AWS Region (verbose mode only)"
+    required: false
+    default: ''
   repository:
-    description: "Repository link"
+    description: "Repository link (verbose mode only)"
     required: false
     default: ${{ github.repository }}
   branch:
-    description: "Branch name"
-    required: true
+    description: "Branch name (verbose mode only)"
+    required: false
+    default: ''
   channel:
     description: "Slack channel to post message to"
     required: true
@@ -88,6 +100,7 @@ runs:
       id: blocks
       shell: bash
       env:
+        COMPACT: ${{ inputs.compact }}
         MESSAGE_TITLE: ${{ inputs.message_title }}
         MESSAGE_BODY: ${{ inputs.message_body }}
         REPOSITORY: ${{ inputs.repository }}
@@ -108,37 +121,49 @@ runs:
       run: |
         set -euo pipefail
 
-        # Base blocks: header + metadata fields + body section. Always present.
-        BLOCKS=$(jq -n \
-          --arg title "$MESSAGE_TITLE" \
-          --arg body "$MESSAGE_BODY" \
-          --arg repository "$REPOSITORY" \
-          --arg environment "$ENVIRONMENT" \
-          --arg branch "$BRANCH" \
-          --arg actor "$ACTOR" \
-          --arg region "$REGION" \
-          --arg bu "$BUSINESS_UNIT" \
-          '[
-            {
-              type: "header",
-              text: { type: "plain_text", text: $title }
-            },
-            {
-              type: "section",
-              fields: [
-                { type: "mrkdwn", text: ("*Repository:*\n" + $repository) },
-                { type: "mrkdwn", text: ("*Environment:*\n" + $environment) },
-                { type: "mrkdwn", text: ("*Branch:*\n" + $branch) },
-                { type: "mrkdwn", text: ("*Triggered by:*\n<https://github.com/" + $actor + "|@" + $actor + ">") },
-                { type: "mrkdwn", text: ("*Region:*\n" + $region) },
-                { type: "mrkdwn", text: ("*Business Unit:*\n" + $bu) }
-              ]
-            },
-            {
-              type: "section",
-              text: { type: "mrkdwn", text: $body }
-            }
-          ]')
+        # Base blocks. In compact mode we emit just header + a single body
+        # section, so the message reads as a clean one-paragraph status.
+        # In verbose mode we keep the legacy 6-field metadata grid.
+        if [ "$COMPACT" = "true" ]; then
+          BLOCKS=$(jq -n \
+            --arg title "$MESSAGE_TITLE" \
+            --arg body "$MESSAGE_BODY" \
+            '[
+              { type: "header", text: { type: "plain_text", text: $title, emoji: true } },
+              { type: "section", text: { type: "mrkdwn", text: $body } }
+            ]')
+        else
+          BLOCKS=$(jq -n \
+            --arg title "$MESSAGE_TITLE" \
+            --arg body "$MESSAGE_BODY" \
+            --arg repository "$REPOSITORY" \
+            --arg environment "$ENVIRONMENT" \
+            --arg branch "$BRANCH" \
+            --arg actor "$ACTOR" \
+            --arg region "$REGION" \
+            --arg bu "$BUSINESS_UNIT" \
+            '[
+              {
+                type: "header",
+                text: { type: "plain_text", text: $title, emoji: true }
+              },
+              {
+                type: "section",
+                fields: [
+                  { type: "mrkdwn", text: ("*Repository:*\n" + $repository) },
+                  { type: "mrkdwn", text: ("*Environment:*\n" + $environment) },
+                  { type: "mrkdwn", text: ("*Branch:*\n" + $branch) },
+                  { type: "mrkdwn", text: ("*Triggered by:*\n<https://github.com/" + $actor + "|@" + $actor + ">") },
+                  { type: "mrkdwn", text: ("*Region:*\n" + $region) },
+                  { type: "mrkdwn", text: ("*Business Unit:*\n" + $bu) }
+                ]
+              },
+              {
+                type: "section",
+                text: { type: "mrkdwn", text: $body }
+              }
+            ]')
+        fi
 
         # Conditionally append actions (buttons) or a decision context block.
         if [ "$RENDER_BUTTONS" = "true" ] && [ "$DECISION_STATE" = "pending" ]; then
