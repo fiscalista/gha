@@ -241,6 +241,9 @@ runs:
           echo "__EOF_BLOCKS__"
         } >> "$GITHUB_OUTPUT"
 
+    # NOTE: unfurl_links/unfurl_media are pinned to false so the GitHub repo
+    # + run-URL links inside the body don't render giant preview cards
+    # beneath each release message.
     - name: Notify Slack - Post Message
       if: ${{ inputs.message_id_to_update == '' && inputs.reply_to_message_id == '' }}
       id: slack
@@ -251,6 +254,8 @@ runs:
         payload: |
           "channel": "${{ inputs.channel }}",
           "text": "${{ inputs.message_title }}",
+          "unfurl_links": false,
+          "unfurl_media": false,
           "blocks": ${{ steps.blocks.outputs.blocks }}
 
     - name: Notify Slack - Update Message
@@ -275,4 +280,6 @@ runs:
           "channel": "${{ inputs.channel }}",
           "thread_ts": "${{ inputs.reply_to_message_id }}",
           "text": "${{ inputs.message_title }}",
+          "unfurl_links": false,
+          "unfurl_media": false,
           "blocks": ${{ steps.blocks.outputs.blocks }}
