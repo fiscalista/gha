@@ -1,0 +1,59 @@
+name: gha release rehearsal
+
+# Rehearsal pipeline for the Slack-driven release-approval flow.
+#
+# Triggers:
+#   - push:tags 'v*+stage' / 'v*+prod' -- created by the receiver's
+#     /deploy slash command Yes button. The tag suffix selects the env.
+#   - workflow_dispatch -- used by `rehearse.sh` for the legacy 1-tag
+#     loop; defaults to staging.
+#
+# All Slack messages are posted by the receiver, not by this workflow:
+#   1. (one time) Install the receiver GitHub App on this repo and:
+#        - enable it as a custom protection rule on Settings -> Environments
+#          (staging + production)
+#        - subscribe the App webhook to:
+#            deployment_protection_rule + workflow_run + workflow_job
+#   2. In Slack: `/deploy repo=fiscalista/gha env=staging`.
+#   3. Click *Yes* on the confirmation -> receiver creates `vX.Y.Z+stage`
+#      tag -> this workflow fires here -> hits the env protection rule
+#      -> "Awaiting Approval" message arrives in Slack.
+
+on:
+  push:
+    tags:
+      - 'v*+stage'
+      - 'v*+prod'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Target environment (workflow_dispatch only)
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+  id-token: write
+
+jobs:
+  deploy_stub:
+    name: Deploy (paused by custom protection rule)
+    runs-on: ubuntu-latest
+    # Tag-push path: derive env from the suffix on github.ref.
+    # workflow_dispatch path: read the env input. Default = staging.
+    environment: >-
+      ${{
+        contains(github.ref, '+prod') && 'production'
+        || (contains(github.ref, '+stage') && 'staging'
+        || (github.event.inputs.env == 'production' && 'production' || 'staging'))
+      }}
+    steps:
+      - name: Stub deploy step
+        run: |
+          echo "rehearsal: deployed sha $GITHUB_SHA at $(date)"
+          echo "ref: $GITHUB_REF"
